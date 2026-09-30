@@ -1,0 +1,14 @@
+services:
+  backend:
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+
+  realtime:
+    environment:
+      NODE_ENV: production
+
+  nginx:
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"

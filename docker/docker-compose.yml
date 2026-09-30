@@ -1,0 +1,88 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-rutatacna}
+      POSTGRES_USER: ${DB_USERNAME:-rutatacna}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en .env}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init-postgis.sql:/docker-entrypoint-initdb.d/010-init-postgis.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      APP_DEBUG: ${APP_DEBUG:-true}
+      APP_KEY: ${APP_KEY:?Define APP_KEY en .env}
+      APP_URL: ${APP_URL:-http://localhost}
+      DB_CONNECTION: pgsql
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE:-rutatacna}
+      DB_USERNAME: ${DB_USERNAME:-rutatacna}
+      DB_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en .env}
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "8000"
+    restart: unless-stopped
+
+  realtime:
+    build:
+      context: ../realtime
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: ${REALTIME_PORT:-3001}
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      OFFLINE_AFTER_MS: ${OFFLINE_AFTER_MS:-120000}
+    expose:
+      - "${REALTIME_PORT:-3001}"
+    restart: unless-stopped
+
+  web-admin:
+    build:
+      context: ../web-admin
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost/api}
+        VITE_REALTIME_URL: ${VITE_REALTIME_URL:-http://localhost}
+    expose:
+      - "4173"
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:1.27-alpine
+    depends_on:
+      - backend
+      - realtime
+      - web-admin
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - ../deploy/nginx:/etc/nginx/conf.d:ro
+      - certbot-webroot:/var/www/certbot:ro
+      - letsencrypt:/etc/letsencrypt:ro
+    restart: unless-stopped
+
+  certbot:
+    image: certbot/certbot:v2.11.0
+    volumes:
+      - certbot-webroot:/var/www/certbot
+      - letsencrypt:/etc/letsencrypt
+
+volumes:
+  postgres-data:
+  certbot-webroot:
+  letsencrypt:

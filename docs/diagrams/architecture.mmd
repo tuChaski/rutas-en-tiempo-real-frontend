@@ -1,0 +1,9 @@
+flowchart LR
+    Mobile[Aplicacion movil] -->|HTTPS /api| Nginx[Nginx]
+    Admin[Panel web] -->|HTTPS| Nginx
+    Nginx -->|/api| Backend[Laravel API]
+    Nginx -->|/socket.io| Realtime[Node.js / Socket.IO]
+    Nginx -->|/| Admin
+    Backend --> Postgres[(PostgreSQL + PostGIS)]
+    Realtime --> Postgres
+    Mobile <-->|WebSocket ubicaciones| Realtime

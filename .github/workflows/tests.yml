@@ -1,0 +1,93 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  detect:
+    name: Detect available services
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.detect.outputs.backend }}
+      realtime: ${{ steps.detect.outputs.realtime }}
+      mobile: ${{ steps.detect.outputs.mobile }}
+      web-admin: ${{ steps.detect.outputs.web-admin }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: detect
+        run: |
+          echo "backend=$([[ -f backend/composer.json ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "realtime=$([[ -f realtime/package-lock.json ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "mobile=$([[ -f mobile/package-lock.json ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "web-admin=$([[ -f web-admin/package-lock.json ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+  backend:
+    name: Backend tests
+    runs-on: ubuntu-latest
+    needs: detect
+    if: needs.detect.outputs.backend == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+      - run: composer install --prefer-dist --no-interaction
+        working-directory: backend
+      - run: php artisan test
+        working-directory: backend
+
+  realtime:
+    name: Realtime tests
+    runs-on: ubuntu-latest
+    needs: detect
+    if: needs.detect.outputs.realtime == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: realtime/package-lock.json
+      - run: npm ci
+        working-directory: realtime
+      - run: npm test --if-present
+        working-directory: realtime
+
+  mobile:
+    name: Mobile tests
+    runs-on: ubuntu-latest
+    needs: detect
+    if: needs.detect.outputs.mobile == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+        working-directory: mobile
+      - run: npm test --if-present
+        working-directory: mobile
+
+  web-admin:
+    name: Web admin tests
+    runs-on: ubuntu-latest
+    needs: detect
+    if: needs.detect.outputs.web-admin == 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web-admin/package-lock.json
+      - run: npm ci
+        working-directory: web-admin
+      - run: npm test --if-present
+        working-directory: web-admin

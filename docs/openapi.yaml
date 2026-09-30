@@ -1,0 +1,89 @@
+openapi: 3.1.0
+info:
+  title: Rutas en Tiempo Real API
+  version: 0.1.0
+  description: Contrato inicial propuesto; debe ajustarse al implementar backend/.
+servers:
+  - url: /api/v1
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Comprueba la disponibilidad de la API
+      responses:
+        '200':
+          description: API disponible
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    const: ok
+  /routes:
+    get:
+      operationId: listRoutes
+      summary: Lista las rutas de transporte
+      responses:
+        '200':
+          description: Rutas disponibles
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Route'
+  /buses/{busId}/location:
+    get:
+      operationId: getBusLocation
+      summary: Obtiene la última ubicación conocida de un bus
+      parameters:
+        - name: busId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ubicación más reciente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusLocation'
+        '404':
+          description: Bus o ubicación no encontrados
+components:
+  schemas:
+    Route:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: [string, 'null']
+    BusLocation:
+      type: object
+      required: [bus_id, latitude, longitude, recorded_at]
+      properties:
+        bus_id:
+          type: string
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+        recorded_at:
+          type: string
+          format: date-time
